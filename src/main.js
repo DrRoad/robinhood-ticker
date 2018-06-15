@@ -9,11 +9,13 @@ const {
   dialog,
   Notification,
 } = require('electron');
+const os = require('os');
 const AutoLaunch = require('auto-launch');
 const fetch = require('node-fetch');
 const path = require('path');
 const url = require('url');
-const openAboutWindow = require('about-window');
+const openAboutWindow = require('about-window').default;
+console.log(openAboutWindow);
 const menubar = require('menubar');
 const Store = require('electron-store');
 const log = require('electron-log');
@@ -253,25 +255,25 @@ const refreshPositions = async accountNumber => {
     if (res.ok) {
       const transformed = await Promise.all(
         json.results
-        .filter(result => Number(result.quantity) !== 0)
-        .map(async result => {
-          const instrument = await (await fetchWithAuth(
-            decodeURIComponent(result.instrument)
-          )).json();
-          const quote = await (await fetchWithAuth(
-            decodeURIComponent(instrument.quote)
-          )).json();
-          return {
-            averageBuyPrice: result.average_buy_price,
-            instrument: result.instrument,
-            quantity: Number(result.quantity),
-            quote: quote,
-            currentPrice: quote.last_traded_price,
-            symbol: instrument.symbol,
-            name: instrument.name,
-            instrument: instrument
-          };
-        })
+          .filter(result => Number(result.quantity) !== 0)
+          .map(async result => {
+            const instrument = await (await fetchWithAuth(
+              decodeURIComponent(result.instrument)
+            )).json();
+            const quote = await (await fetchWithAuth(
+              decodeURIComponent(instrument.quote)
+            )).json();
+            return {
+              averageBuyPrice: result.average_buy_price,
+              instrument: result.instrument,
+              quantity: Number(result.quantity),
+              quote: quote,
+              currentPrice: quote.last_traded_price,
+              symbol: instrument.symbol,
+              name: instrument.name,
+              instrument: instrument
+            };
+          })
       );
       RobinHoodAPI._positions = transformed;
     } else {
@@ -345,16 +347,30 @@ const refreshWatchlist = async () => {
 
 // The login window.
 const createLoginWindow = () => {
-  return new BrowserWindow({
-    width: 300,
-    height: 450,
+  const defaultOpts = {
     backgroundColor: '#61CA9D',
     center: true,
     title: 'RobinHood Ticker',
     resizable: false,
     titleBarStyle: 'hidden',
-    show: false
-  });
+    show: false,
+  };
+
+  if (os.platform() === 'darwin') {
+    // Mac
+    return new BrowserWindow(Object.assign({
+      width: 300,
+      height: 450,
+    }, defaultOpts));
+  } else {
+    // Windows
+    return new BrowserWindow(Object.assign({
+      width: 325,
+      height: 500,
+      frame: false,
+    }, defaultOpts));
+  }
+
 };
 
 // To be displayed if the user has not authenticated yet
@@ -382,9 +398,9 @@ const createLoginMenu = () => {
   template.push({
     type: 'separator'
   }, {
-    label: 'Quit',
-    click: () => app.quit()
-  });
+      label: 'Quit',
+      click: () => app.quit()
+    });
   return Menu.buildFromTemplate(template);
 };
 
@@ -479,7 +495,9 @@ const createPreferencesWindow = () => {
 const isAuthenticated = () => (store.get('data') ? true : false);
 
 const initializeApp = () => {
-  app.dock.hide();
+  if (os.platform() === 'darwin') {
+    app.dock.hide();
+  }
 
   const autoLaunch = new AutoLaunch({
     name: 'RH-Ticker',
@@ -505,7 +523,8 @@ const initializeApp = () => {
     store.set('preferences', {
       refreshRate: 1,
       viewChangeBy: 'gain/loss',
-      viewEquityBy: 'total-equity'
+      viewEquityBy: 'total-equity',
+      percent: 2,
     });
   }
 
