@@ -6,8 +6,6 @@ const {
   Menu,
   session,
   ipcMain,
-  dialog,
-  Notification,
 } = require('electron');
 const os = require('os');
 const AutoLaunch = require('auto-launch');
@@ -19,9 +17,6 @@ console.log(openAboutWindow);
 const menubar = require('menubar');
 const Store = require('electron-store');
 const log = require('electron-log');
-const {
-  appUpdater
-} = require('./app-updater');
 const notificationMapper = require('./notification-mapper');
 const {
   timeout,
@@ -33,7 +28,7 @@ const StockAPI = require('./StockAPI');
 const store = new Store();
 
 const ICON_LOGO_LARGE = path.join(__dirname, '../assets/logo-512.png');
-const ICON_LOGO = path.join(__dirname, '../assets/logo-16.png');
+const ICON_LOGO = path.join(__dirname, os.platform() === 'darwin' ? '../assets/logo-16.png' : '../assets/logo-16-white.png');
 const ELECTRON_PATH = path.join(__dirname, '../node_modules/electron');
 
 const TIMEOUT_MS = 5000;
@@ -583,7 +578,7 @@ const initializeApp = () => {
     mb.window.webContents.once('did-frame-finish-load', () => {
       /* Check for auto updates */
       if (process.platform === 'darwin') {
-        appUpdater();
+        // appUpdater();
       }
     });
 
@@ -592,6 +587,9 @@ const initializeApp = () => {
     console.log('not authenticated');
     contextMenu = createLoginMenu();
     tray.setContextMenu(contextMenu);
+    if (process.platform === 'win32') {
+      tray.on('click', () => tray.popUpContextMenu());
+    }
   }
 
   // Emitted when the window is closed.
